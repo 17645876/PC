@@ -1,20 +1,30 @@
-int CountLines(char *filename)//获取文件的行数
+#include "pch.h"
+#include <fstream>
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
 {
-ifstream ReadFile;
-int n=0;
-string temp;
-ReadFile.open(filename,ios::in);//ios::in 表示以只读的方式读取文件
-if(ReadFile.fail())//文件打开失败:返回0
-{
-   return 0;
+	string S;
+	string temp;
+	int n = 0;
+	ifstream inf;
+	inf.open("C:\\Users\\Student\\Desktop\\temp_lincolnshire_short.txt");
+	cout << "getline\n";
+	/* 
+	while (getline(inf, S))
+	{
+		//outf << S << '\n';
+		cout << S << endl;
+	}*/
+	while (getline(inf, temp))
+	{
+		n++;
+	}
+	cout << n << endl;
+	inf.close();
+	return 0;
 }
-else//文件存在,返回文件行数
-{
-   while(getline(ReadFile,temp))
-   {
-    n++;
-   }
-   return n;
-}
-ReadFile.close();
-}
+
