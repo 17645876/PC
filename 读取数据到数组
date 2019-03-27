@@ -1,0 +1,25 @@
+#include <iostream>
+#include <fstream>
+ 
+using namespace std;
+ 
+int main()
+{
+    double array[27][30]={0.0};
+     
+    ifstream infile;
+     
+    infile.open("data.txt");
+     
+    double* ptr = &array[0][0];
+     
+    while(!infile.eof())
+    {
+        infile>>*ptr;
+        ptr++;
+    }
+     
+    infile.close();
+     
+    return 0;
+}
