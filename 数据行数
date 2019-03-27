@@ -11,15 +11,14 @@ int main()
 	string temp;
 	int n = 0;
 	ifstream inf;
-	inf.open("C:\\Users\\Student\\Desktop\\temp_lincolnshire_short.txt");
-	cout << "getline\n";
+	inf.open("C:\\Users\\Student\\Desktop\\temp_lincolnshire_short.txt");#读取文档
 	/* 
-	while (getline(inf, S))
+	while (getline(inf, S))#打印文档
 	{
 		//outf << S << '\n';
 		cout << S << endl;
 	}*/
-	while (getline(inf, temp))
+	while (getline(inf, temp))#获取文档数据行数
 	{
 		n++;
 	}
