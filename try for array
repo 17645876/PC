@@ -1,0 +1,64 @@
+#include "pch.h"
+#include <fstream>
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main()
+{
+	string S;
+	string temp;
+	int n = 0;
+	int i = 0;
+	int m = 6;
+	ifstream inf;
+	inf.open("C:\\Users\\Student\\Desktop\\temp_lincolnshire_short.txt");
+	while (getline(inf,S))
+	{
+		n++;
+	}
+	cout << n << endl;
+
+	array *Row0 = new array[n];
+	array *Row1 = new array[n];
+	array *Row2 = new array[n];
+	array *Row3 = new array[n];
+	array *Row4 = new array[n];
+	array *Row5 = new array[n];
+	//cout << Row0.leng << endl;
+	while (!inf.eof())
+	{
+		inf >> Row0[i];
+		inf >> Row1[i];
+		i++;
+	}
+	for (int i = 0; i < n; ++i)
+		for (int j = 0; j < m; ++j)
+			switch (j)
+			{
+			case 0:
+				inf >> Row0[i];
+				break;
+			case 1:
+				inf >> Row1[i];
+				break;
+			case 2:
+				inf >> Row2[i];
+				break;
+			case 3:
+				inf >> Row3[i];
+				break;
+			case 4:
+				inf >> Row4[i];
+				break;
+			case 5:
+				inf >> Row5[i];
+				break;
+			}
+	for(i=0;i<n;i++)
+		cout << Row0[i] << "\t" << Row1[i] << "\t" << Row2[i] << "\t" << Row3[i] << "\t" << Row4[i] << "\t" << Row5[i] << endl;
+	
+	inf.close();
+	return 0;
+}
