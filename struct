@@ -1,0 +1,9 @@
+struct W
+{
+	char L[25];
+	int Y;
+	int M;
+	int D;
+	int T;
+	float A;
+};
