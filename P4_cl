@@ -1,0 +1,12 @@
+//ave
+kernel void add(global const int* A, global int* C) {
+	int id = get_global_id(0);
+	int N = get_global_size(0);
+	int sum = 0;
+	//int ave = 0;
+	for (int i = 1; i < N; i++)
+	{
+		sum = sum + A[i];
+	}
+	C = sum / N;
+}
