@@ -1,0 +1,53 @@
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
+
+using namespace std;
+
+int RowNumber()
+{
+	ifstream inf;
+	string S;
+	int n = 0;
+	inf.open("C:\\Users\\Student\\Desktop\\try.txt");
+	while  (inf >> S)
+		n++;
+	return n;
+	inf.close();
+}
+
+int main()
+{
+	ifstream inf;
+	string S;
+	int n;
+	inf.open("C:\\Users\\Student\\Desktop\\try.txt");
+
+	n = RowNumber();
+
+	float *t = new float[n/6];
+	int i = 0;
+	while (!inf.eof())
+	{
+		inf >> S;
+		if ((i + 1) % 6 == 0)
+		{
+			t[(i + 1) / 6] = atoi(S.c_str());
+			cout << t[(i + 1) / 6] << endl;
+		}
+		i++;
+	}
+	int *T = new int[n/6];
+	for (int j = 0; j < n / 6; j++)
+	{ 
+		T[j] = (int)t[j]*10;
+		cout << T[j] << endl;
+	}
+	cout << "end" << endl;
+	inf.close();
+	/*for (i = 0; i < n; i++)
+		cout << t[i] << endl;*/
+	return 0;
+}
+
