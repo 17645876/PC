@@ -1,0 +1,127 @@
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS //使用反对？？？作用不知
+#define __CL_ENABLE_EXCEPTIONS //可能的意外？？？作用不知
+
+#include <iostream> //C++基本库
+#include <vector> //矢量库
+
+#ifdef __APPLE__ //苹果？？？作用不知
+#include <OpenCL/cl.hpp> //C++ 接口创建kernel
+#else
+#include <CL/cl.hpp>
+#endif
+
+#include "Utils.h" 
+//.h文件实现的功能是声明本文件或.cpp文件中需要被别人使用或知道的变量、类型、函数及宏定义等。.h文件就像是一个接口，具体的实现可以在.cpp中也可以在.h中
+// 提示打印
+void print_help() {
+	std::cerr << "Application usage:" << std::endl;
+
+	std::cerr << "  -p : select platform " << std::endl;
+	std::cerr << "  -d : select device" << std::endl;
+	std::cerr << "  -l : list all platforms and devices" << std::endl;
+	std::cerr << "  -h : print this message" << std::endl;
+}
+// argc是命令行总的参数个数 ；argv[]为保存命令行参数的字符串指针，其中第0个参数是程序的全名
+int main(int argc, char **argv) {
+	//Part 1 - handle command line options such as device selection, verbosity, etc.
+	//第1部分 - 处理命令行选项，例如设备选择，详细程度等。
+	int platform_id = 0; // 平台
+	int device_id = 0; // 设备
+
+	for (int i = 1; i < argc; i++)	{
+		if ((strcmp(argv[i], "-p") == 0) && (i < (argc - 1))) { platform_id = atoi(argv[++i]); }
+		else if ((strcmp(argv[i], "-d") == 0) && (i < (argc - 1))) { device_id = atoi(argv[++i]); }
+		else if (strcmp(argv[i], "-l") == 0) { std::cout << ListPlatformsDevices() << std::endl; }
+		else if (strcmp(argv[i], "-h") == 0) { print_help(); return 0;}
+	}
+
+	//detect any potential exceptions
+	//检测任何潜在的异常
+	try {
+		//Part 2 - host operations
+		//第2部分 - 主机操作
+		//2.1 Select computing devices
+		//2.1选择计算设备
+		cl::Context context = GetContext(platform_id, device_id);
+
+		//display the selected device
+		//显示所选设备
+
+		std::cout << "Running on " << GetPlatformName(platform_id) << ", " << GetDeviceName(platform_id, device_id) << std::endl;
+
+		//create a queue to which we will push commands for the device
+		//创建一个队列，我们将为该设备推送命令
+		cl::CommandQueue queue(context);
+
+		//2.2 Load & build the device code
+		//2.2加载并构建设备代码
+		cl::Program::Sources sources;
+
+		AddSources(sources, "my_kernels_1.cl");
+
+		cl::Program program(context, sources);
+
+		//build and debug the kernel code
+		//构建并调试内核代码
+		try {
+			program.build();
+		}
+		catch (const cl::Error& err) {
+			std::cout << "Build Status: " << program.getBuildInfo<CL_PROGRAM_BUILD_STATUS>(context.getInfo<CL_CONTEXT_DEVICES>()[0]) << std::endl;
+			std::cout << "Build Options:\t" << program.getBuildInfo<CL_PROGRAM_BUILD_OPTIONS>(context.getInfo<CL_CONTEXT_DEVICES>()[0]) << std::endl;
+			std::cout << "Build Log:\t " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(context.getInfo<CL_CONTEXT_DEVICES>()[0]) << std::endl;
+			throw err;
+		}
+
+		//Part 3 - memory allocation
+		//第3部分 - 内存分配
+		//host - input
+		//主机 - 输入
+		std::vector<int> A = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }; //C++11 allows this type of initialisation（C ++ 11允许这种类型的初始化）
+		std::vector<int> B = { 0, 1, 2, 0, 1, 2, 0, 1, 2, 0 };
+		
+		size_t vector_elements = A.size();//number of elements（元素数量）
+		size_t vector_size = A.size()*sizeof(int);//size in bytes（大小以字节为单位）
+
+		//host - output
+		//主机 - 输出
+		std::vector<int> C(vector_elements);
+
+		//device - buffers
+		//设备 - 缓冲区
+		cl::Buffer buffer_A(context, CL_MEM_READ_WRITE, vector_size);
+		cl::Buffer buffer_B(context, CL_MEM_READ_WRITE, vector_size);
+		cl::Buffer buffer_C(context, CL_MEM_READ_WRITE, vector_size);
+
+		//Part 4 - device operations
+		//第4部分 - 设备操作
+
+		//4.1 Copy arrays A and B to device memory
+		//4.1将数组A和B复制到设备内存
+		queue.enqueueWriteBuffer(buffer_A, CL_TRUE, 0, vector_size, &A[0]);
+		queue.enqueueWriteBuffer(buffer_B, CL_TRUE, 0, vector_size, &B[0]);
+
+		//4.2 Setup and execute the kernel (i.e. device code)
+		//4.2设置并执行内核（即设备代码）
+		cl::Kernel kernel_add = cl::Kernel(program, "add");
+		kernel_add.setArg(0, buffer_A);
+		kernel_add.setArg(1, buffer_B);
+		kernel_add.setArg(2, buffer_C);
+
+		queue.enqueueNDRangeKernel(kernel_add, cl::NullRange, cl::NDRange(vector_elements), cl::NullRange);
+
+		//4.3 Copy the result from device to host
+		//4.3将结果从设备复制到主机
+		queue.enqueueReadBuffer(buffer_C, CL_TRUE, 0, vector_size, &C[0]);
+
+		std::cout << "A = " << A << std::endl;
+		std::cout << "B = " << B << std::endl;
+		std::cout << "C = " << C << std::endl;
+	}
+	catch (cl::Error err) {
+		std::cerr << "ERROR: " << err.what() << ", " << getErrorString(err.err()) << std::endl;
+	}
+
+	return 0;
+}
+
