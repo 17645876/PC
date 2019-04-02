@@ -1,0 +1,60 @@
+kernel void S_ave(global const int* A, global int* B, global int* C) {
+	int id = get_global_id(0);
+	int N = get_global_size(0);
+	int sum = 0;
+
+	barrier(CLK_GLOBAL_MEM_FENCE); 
+
+	for (int i = 0; i < N; i++)
+	{
+		sum = sum + A[i];
+	}
+	C[0] = sum;
+}
+
+kernel void s_ave(global const int* A, global int* B, global int* C) {
+	int id = get_global_id(0);
+	int N = get_global_size(0);
+	B[id] = A[id];
+	int s = 2;
+	barrier(CLK_GLOBAL_MEM_FENCE);
+	for (int i = N; i >= 1; i /= 2)
+	{
+		if (((id % s) == 0) && ((id + s / 2) < N))
+			B[id] += B[id + s / 2];
+		s *= 2;
+		barrier(CLK_GLOBAL_MEM_FENCE);
+	}
+	C[0] = s;
+}
+
+kernel void reduce_add_1(global const int* A, global int* B) {
+	int id = get_global_id(0);
+	int N = get_global_size(0);
+
+	B[id] = A[id]; //copy input to output
+
+	barrier(CLK_GLOBAL_MEM_FENCE); //wait for all threads to finish copying
+
+	//perform reduce on the output array
+	//modulo operator is used to skip a set of values (e.g. 2 in the next line)
+	//we also check if the added element is within bounds (i.e. < N)
+	if (((id % 2) == 0) && ((id + 1) < N))
+		B[id] += B[id + 1];
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (((id % 4) == 0) && ((id + 2) < N))
+		B[id] += B[id + 2];
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (((id % 8) == 0) && ((id + 4) < N))
+		B[id] += B[id + 4];
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	if (((id % 16) == 0) && ((id + 8) < N))
+		B[id] += B[id + 8];
+}
+
