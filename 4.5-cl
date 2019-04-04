@@ -1,0 +1,359 @@
+//S_ave 完成
+kernel void S_ave(global const int* A, global int* B) {
+	int id = get_global_id(0);
+	int N = get_global_size(0);
+	int sum = 0;
+	barrier(CLK_GLOBAL_MEM_FENCE);
+	for (int i = 0; i < N; i++)
+	{
+		sum = sum + A[i];
+		barrier(CLK_GLOBAL_MEM_FENCE);
+	}
+	B[0] = sum;
+}
+
+// P_ave 完成
+kernel void P_ave(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int lid = get_local_id(0);
+	int N = get_local_size(0);
+	//cache all N values from global memory to local memory
+	scratch[lid] = A[id];
+	//wait for all local threads to finish copying from global to local memory
+	barrier(CLK_LOCAL_MEM_FENCE);
+	int s = 1;
+	for (int i = N; i >= 1; i /= 2)
+	{
+		s *= 2;
+		if (((lid % s)==0) && ((lid + s / 2) < N))
+			scratch[lid] += scratch[lid + s / 2];
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+	//we add results from all local groups to the first element of the array
+	//serial operation! but works for any group size
+	//copy the cache to output array
+	if (!lid) {
+		atomic_add(&B[0],scratch[lid]);
+	}
+}
+
+// S_Sd 有问题
+kernel void S_Sd(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int N = get_global_size(0);
+	int sum = 0;
+	int temp = 0;
+	int ave = 0;
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	for (int i = 0; i < N; i++)
+	{
+		sum += A[i];
+	}
+	ave = sum / N;
+	
+	scratch[lid] = A[id];
+	barrier(CLK_GLOBAL_MEM_FENCE);
+	for (int j = 0; j < N; j++)
+	{
+		temp += (ave - scratch[j])*(ave - scratch[j]);
+	}
+	B[0] = temp;
+}
+
+// P_Sd 未评估
+kernel void P_Sd(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int lid = get_local_id(0);
+	int N = get_local_size(0);
+	int sum = 0;
+	int temp = 0;
+	int ave = 0;
+	scratch[lid] = A[id];
+	barrier(CLK_LOCAL_MEM_FENCE);
+	int s = 1;
+	for (int i = N; i >= 1; i /= 2)
+	{
+		s *= 2;
+		if (((lid % s)==0) && ((lid + s / 2) < N))
+			scratch[lid] += scratch[lid + s / 2];
+
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+	sum = scratch[0];
+	ave = sum / N;
+	scratch[lid] = A[id];
+	barrier(CLK_GLOBAL_MEM_FENCE);
+	for (int j = 0; j < N; j++)
+	{
+		temp += (ave - scratch[j])*(ave - scratch[j]);
+	}
+	B[0] = temp;
+}
+
+//------------average & standard deviation------------
+//Sorting use serial implenmentation way (Bubble sort) -- return max
+kernel void S_Bs_max(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int lid = get_local_id(0);
+	int N = get_global_size(0);
+	scratch[lid] = A[id];
+	int t = 0;
+	for (int i = 0; i < N; i++)
+	{
+		for (int j = 0; j < N; j++)
+		{
+			if (scratch[j] < scratch[j + 1])
+			{
+				t = scratch[j];
+				scratch[j] = scratch[j + 1];
+				scratch[j + 1] = t;
+			}
+		}
+	}
+	B[0] = scratch[0];
+}
+
+//Sorting use parallel implenmentation way (Odd Even sort) -- return max
+kernel void P_OE_max(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int lid = get_local_id(0);
+	int N = get_global_size(0);
+	scratch[lid] = A[id];
+	int t = 0;
+	for (int i = 0; i < N / 2; i++)
+	{
+		for (int j = 1; j < N; j += 2)
+		{
+			if (scratch[j - 1] < scratch[j])
+			{
+				t = scratch[j - 1];
+				scratch[j - 1] = scratch[j];
+				scratch[j] = t;
+			}
+		}
+		for (int j = 1; j < N; j += 2)
+		{
+			if (scratch[j] < scratch[j + 1])
+			{
+				t = scratch[j];
+				scratch[j] = scratch[j + 1];
+				scratch[j + 1] = t;
+			}
+		}
+	}
+	B[0] = scratch[0];
+}
+
+//Sorting use serial implenmentation way (Bubble sort) -- return min
+kernel void S_Bs_min(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int lid = get_local_id(0);
+	int N = get_global_size(0);
+	scratch[lid] = A[id];
+	int t = 0;
+	for (int i = 0; i < N; i++)
+	{
+		for (int j = 0; j < N; j++)
+		{
+			if (scratch[j] < scratch[j + 1])
+			{
+				t = scratch[j];
+				scratch[j] = scratch[j + 1];
+				scratch[j + 1] = t;
+			}
+		}
+	}
+	B[0] = scratch[N - 1];
+}
+
+//Sorting use parallel implenmentation way (Odd Even sort) -- return min
+kernel void P_OE_min(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int lid = get_local_id(0);
+	int N = get_global_size(0);
+	scratch[lid] = A[id];
+	int t = 0;
+	for (int i = 0; i < N / 2; i++)
+	{
+		for (int j = 1; j < N; j += 2)
+		{
+			if (scratch[j - 1] < scratch[j])
+			{
+				t = scratch[j - 1];
+				scratch[j - 1] = scratch[j];
+				scratch[j] = t;
+			}
+		}
+		for (int j = 1; j < N; j += 2)
+		{
+			if (scratch[j] < scratch[j + 1])
+			{
+				t = scratch[j];
+				scratch[j] = scratch[j + 1];
+				scratch[j + 1] = t;
+			}
+		}
+	}
+	B[0] = scratch[N - 1];
+}
+
+//Sorting use serial implenmentation way (Bubble sort) -- return median
+kernel void S_Bs_median(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int lid = get_local_id(0);
+	int N = get_global_size(0);
+	scratch[lid] = A[id];
+	int t = 0;
+	for (int i = 0; i < N; i++)
+	{
+		for (int j = 0; j < N; j++)
+		{
+			if (scratch[j] < scratch[j + 1])
+			{
+				t = scratch[j];
+				scratch[j] = scratch[j + 1];
+				scratch[j + 1] = t;
+			}
+		}
+	}
+	B[0] = scratch[N / 2 - 1];
+}
+
+//Sorting use parallel implenmentation way (Odd Even sort) -- return median
+kernel void P_OE_median(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int lid = get_local_id(0);
+	int N = get_global_size(0);
+	scratch[lid] = A[id];
+	int t = 0;
+	for (int i = 0; i < N / 2; i++)
+	{
+		for (int j = 1; j < N; j += 2)
+		{
+			if (scratch[j - 1] < scratch[j])
+			{
+				t = scratch[j - 1];
+				scratch[j - 1] = scratch[j];
+				scratch[j] = t;
+			}
+		}
+		for (int j = 1; j < N; j += 2)
+		{
+			if (scratch[j] < scratch[j + 1])
+			{
+				t = scratch[j];
+				scratch[j] = scratch[j + 1];
+				scratch[j + 1] = t;
+			}
+		}
+	}
+	B[0] = scratch[N / 2 - 1];
+}
+
+//Sorting use serial implenmentation way (Bubble sort) -- return 25th
+kernel void S_Bs_25th(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int lid = get_local_id(0);
+	int N = get_global_size(0);
+	scratch[lid] = A[id];
+	int t = 0;
+	for (int i = 0; i < N; i++)
+	{
+		for (int j = 0; j < N; j++)
+		{
+			if (scratch[j] < scratch[j + 1])
+			{
+				t = scratch[j];
+				scratch[j] = scratch[j + 1];
+				scratch[j + 1] = t;
+			}
+		}
+	}
+	B[0] = scratch[N / 4 - 1];
+}
+
+//Sorting use parallel implenmentation way (Odd Even sort) -- return 25th
+kernel void P_OE_25th(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int lid = get_local_id(0);
+	int N = get_global_size(0);
+	scratch[lid] = A[id];
+	int t = 0;
+	for (int i = 0; i < N / 2; i++)
+	{
+		for (int j = 1; j < N; j += 2)
+		{
+			if (scratch[j - 1] < scratch[j])
+			{
+				t = scratch[j - 1];
+				scratch[j - 1] = scratch[j];
+				scratch[j] = t;
+			}
+		}
+		for (int j = 1; j < N; j += 2)
+		{
+			if (scratch[j] < scratch[j + 1])
+			{
+				t = scratch[j];
+				scratch[j] = scratch[j + 1];
+				scratch[j + 1] = t;
+			}
+		}
+	}
+	B[0] = scratch[N / 4 - 1];
+}
+
+//Sorting use serial implenmentation way (Bubble sort) -- return 75th
+kernel void S_Bs_75th(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int lid = get_local_id(0);
+	int N = get_global_size(0);
+	scratch[lid] = A[id];
+	int t = 0;
+	for (int i = 0; i < N; i++)
+	{
+		for (int j = 0; j < N; j++)
+		{
+			if (scratch[j] < scratch[j + 1])
+			{
+				t = scratch[j];
+				scratch[j] = scratch[j + 1];
+				scratch[j + 1] = t;
+			}
+		}
+	}
+	B[0] = scratch[N * 3 / 4 - 1];
+}
+
+//Sorting use parallel implenmentation way (Odd Even sort) -- return 75th
+kernel void P_OE_75th(global const int* A, global int* B, local int* scratch) {
+	int id = get_global_id(0);
+	int lid = get_local_id(0);
+	int N = get_global_size(0);
+	scratch[lid] = A[id];
+	int t = 0;
+	for (int i = 0; i < N / 2; i++)
+	{
+		for (int j = 1; j < N; j += 2)
+		{
+			if (scratch[j - 1] < scratch[j])
+			{
+				t = scratch[j - 1];
+				scratch[j - 1] = scratch[j];
+				scratch[j] = t;
+			}
+		}
+		for (int j = 1; j < N; j += 2)
+		{
+			if (scratch[j] < scratch[j + 1])
+			{
+				t = scratch[j];
+				scratch[j] = scratch[j + 1];
+				scratch[j + 1] = t;
+			}
+		}
+	}
+	B[0] = scratch[N * 3 / 4 - 1];
+}
